@@ -7,8 +7,13 @@ from django.shortcuts import render, get_object_or_404
 from django.views.generic import ListView, DetailView, View
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.http import Http404
 from .forms import CheckoutForm, CouponForm, RefundForm
 from .models import Item, OrderItem, Order, BillingAddress, Payment, Coupon, Refund, Category
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .serializer import ItemSerializer, OrderItemSerializer
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 
@@ -382,3 +387,44 @@ class RequestRefundView(View):
             except ObjectDoesNotExist:
                 messages.info(self.request, "This order does not exist")
                 return redirect("core:request-refund")
+
+
+class ItemList(APIView):
+    def get(self, request, format=None):
+        items = Item.objects.all()
+        serializer = ItemSerializer(items, many=True)
+        return Response(serializer.data)
+
+
+class ItemDetail(APIView):
+    def get_object(self, slug):
+        try:
+            return Item.objects.get(slug=slug)
+        except Item.DoesNotExist:
+            raise Http404
+
+    def get(self, request, slug, format=None):
+        item = self.get_object(slug)
+        serializer = ItemSerializer(item)
+        return Response(serializer.data)
+
+    def post(self, request, slug, format=None):
+        serializer = ItemSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OrderItemList(APIView):
+    def get(self, request, format=None):
+        items = OrderItem.objects.all()
+        serializer = OrderItemSerializer(items, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, slug, format=None):
+        serializer = OrderItemSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
