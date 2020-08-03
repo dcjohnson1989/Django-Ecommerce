@@ -1,4 +1,8 @@
 from django.urls import path
+from django.conf.urls import url
+from django.views.generic import TemplateView
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 from .views import (
     ItemDetailView,
     HomeView,
@@ -19,6 +23,18 @@ from .views import (
 
 app_name = 'core'
 
+schema_view = get_schema_view(
+   openapi.Info(
+      title="API",
+      default_version='v1',
+      description="Test description",
+      terms_of_service="https://www.google.com/policies/terms/",
+      contact=openapi.Contact(email="contact@snippets.local"),
+      license=openapi.License(name="BSD License"),
+   ),
+   public=True
+)
+
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
     path('checkout/', CheckoutView.as_view(), name='checkout'),
@@ -35,5 +51,6 @@ urlpatterns = [
     path('request-refund/', RequestRefundView.as_view(), name='request-refund'),
     path('api/items', ItemList.as_view(), name='item_api'),
     path('api/item/<slug>', ItemDetail.as_view(), name='item_detail_api'),
-    path('api/order_items', OrderItemList.as_view(), name='order_item_list')
+    path('api/order_items', OrderItemList.as_view(), name='order_item_list'),
+    url('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger')
 ]
