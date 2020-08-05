@@ -1,0 +1,39 @@
+{% extends 'base.html' %} 
+{% load static %} 
+{% block content %}
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-12">
+      <h2>Order History</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Order Id</th>
+            <th scope="col">Start date</th>
+            <th scope="col">Ordered date</th>
+            <th scope="col">Total Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in object.all %}
+          <tr>
+            <th scope="row">{{ forloop.counter }}</th>
+              <td>{{ order.ref_code }}</td>
+            <td>{{ order.start_date }}</td>
+            <td>{{ order.ordered_date }}</td>
+              <td>{{ order.get_total }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+			<td colspan="5">Your cart is empty</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock content %}
