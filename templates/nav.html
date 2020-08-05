@@ -54,6 +54,9 @@
 							{% categories %}
 
 							{% if request.user.is_authenticated %}
+                            <li>
+								<a href="/order-history/">History</a>
+							</li>
 							<li>
 								<a href="{% url 'core:order-summary' %}">Cart<span class="badge badge-dark">{{ request.user|cart_item_count }}</span></a>
 							</li>
