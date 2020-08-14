@@ -8,11 +8,13 @@ from django.views.generic import ListView, DetailView, View
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.http import Http404
+from django.contrib.auth.models import User
 from .forms import CheckoutForm, CouponForm, RefundForm
 from .models import Item, OrderItem, Order, BillingAddress, Payment, Coupon, Refund, Category
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from .serializer import ItemSerializer, OrderItemSerializer
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
@@ -423,22 +425,34 @@ class ItemDetail(APIView):
         serializer = ItemSerializer(item)
         return Response(serializer.data)
 
-    def post(self, request, slug, format=None):
-        serializer = ItemSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    # def post(self, request, slug, format=None):
+    #     serializer = ItemSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class OrderItemList(APIView):
     def get(self, request, format=None):
-        items = OrderItem.objects.all()
+        auth_token = request.META['HTTP_AUTHORIZATION']
+        user = Token.objects.get(key=auth_token).user
+        items = OrderItem.objects.filter(user=user)
+        # items = OrderItem.objects.all()
         serializer = OrderItemSerializer(items, many=True)
         return Response(serializer.data)
 
-    def post(self, request, slug, format=None):
-        serializer = OrderItemSerializer(data=request.data)
+    def post(self, request, format=None):
+        auth_token = request.META['HTTP_AUTHORIZATION']
+        user = Token.objects.get(key=auth_token).user
+        user_id = User.objects.get(username=user).pk
+        print(user_id)
+        save_data = request.data
+        slug = request.data['slug']
+        item = Item.objects.get(slug=slug).pk
+        print(item)
+        save_data['user'] = user_id
+        save_data['item'] = item
+        serializer = OrderItemSerializer(data=save_data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
