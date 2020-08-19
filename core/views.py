@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from .serializer import ItemSerializer, OrderItemSerializer
+from .serializer import ItemSerializer, OrderItemSerializer, OrderSerializer
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 
@@ -122,6 +122,7 @@ class OrderSummaryView(LoginRequiredMixin, View):
     def get(self, *args, **kwargs):
         try:
             order = Order.objects.get(user=self.request.user, ordered=False)
+            print(order.items.all())
             context = {
                 'object': order
             }
@@ -135,7 +136,7 @@ class OrderHistoryView(LoginRequiredMixin, View):
     def get(self, *args, **kwargs):
         try:
             # order = Order.objects.get(user=self.request.user, ordered=False)
-            orders = Order.objects.filter(user=self.request.user)
+            orders = Order.objects.filter(user=self.request.user, ordered=True)
             print(orders)
             context = {
                 'object': orders
@@ -255,21 +256,28 @@ class CheckoutView(View):
 
 @login_required
 def add_to_cart(request, slug):
+    print(request)
+    print(slug)
     item = get_object_or_404(Item, slug=slug)
     order_item, created = OrderItem.objects.get_or_create(
         item=item,
         user=request.user,
         ordered=False
     )
+    print(order_item)
     order_qs = Order.objects.filter(user=request.user, ordered=False)
+    print(order_qs)
     if order_qs.exists():
         order = order_qs[0]
+        print(order)
         if order.items.filter(item__slug=item.slug).exists():
             order_item.quantity += 1
             order_item.save()
             messages.info(request, "Item qty was updated.")
             return redirect("core:order-summary")
         else:
+            order_item.quantity += 1
+            order_item.save()
             order.items.add(order_item)
             messages.info(request, "Item was added to your cart.")
             return redirect("core:order-summary")
@@ -277,6 +285,8 @@ def add_to_cart(request, slug):
         ordered_date = timezone.now()
         order = Order.objects.create(
             user=request.user, ordered_date=ordered_date)
+        order_item.quantity += 1
+        order_item.save()
         order.items.add(order_item)
         messages.info(request, "Item was added to your cart.")
     return redirect("core:order-summary")
@@ -297,6 +307,8 @@ def remove_from_cart(request, slug):
                 user=request.user,
                 ordered=False
             )[0]
+            order_item.quantity = 0
+            order_item.save()
             order.items.remove(order_item)
             messages.info(request, "Item was removed from your cart.")
             return redirect("core:order-summary")
@@ -435,25 +447,89 @@ class ItemDetail(APIView):
 class OrderItemList(APIView):
     def get(self, request, format=None):
         auth_token = request.META['HTTP_AUTHORIZATION']
-        user = Token.objects.get(key=auth_token).user
-        items = OrderItem.objects.filter(user=user)
+        try:
+            user = Token.objects.get(key=auth_token).user
+        except:
+            return Response(status=401)
+        order = OrderItem.objects.filter(user=user, ordered=False)
         # items = OrderItem.objects.all()
-        serializer = OrderItemSerializer(items, many=True)
+        serializer = OrderItemSerializer(order, many=True)
         return Response(serializer.data)
+
 
     def post(self, request, format=None):
         auth_token = request.META['HTTP_AUTHORIZATION']
-        user = Token.objects.get(key=auth_token).user
+        try:
+            user = Token.objects.get(key=auth_token).user
+        except:
+            return Response(status=401)
         user_id = User.objects.get(username=user).pk
         print(user_id)
         save_data = request.data
         slug = request.data['slug']
+        quantity = request.data['quantity']
         item = Item.objects.get(slug=slug).pk
         print(item)
         save_data['user'] = user_id
         save_data['item'] = item
-        serializer = OrderItemSerializer(data=save_data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+        order_item, created = OrderItem.objects.get_or_create(
+            item=item,
+            user=user_id,
+            ordered=False
+        )
+        order_item.quantity = quantity
+        order_item.save()
+        return Response('update successfully')
+        # serializer = OrderItemSerializer(data=save_data)
+        # if serializer.is_valid():
+        #     serializer.save()
+        #     return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OrderCart(APIView):
+    def get(self, request):
+        auth_token = request.META['HTTP_AUTHORIZATION']
+        try:
+            user = Token.objects.get(key=auth_token).user
+        except:
+            return Response(status=401)
+        order_carts = Order.objects.filter(user=user, ordered=False)
+        serializer = OrderSerializer(order_carts, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        auth_token = request.META['HTTP_AUTHORIZATION']
+        try:
+            user = Token.objects.get(key=auth_token).user
+        except:
+            return Response(status=401)
+        user_id = User.objects.get(username=user).pk
+        print(user_id)
+        slug = request.data['slug']
+        item = get_object_or_404(Item, slug=slug)
+        order_item, created = OrderItem.objects.get_or_create(
+            item=item,
+            user=user_id,
+            ordered=False
+        )
+        print(order_item)
+        order_qs = Order.objects.filter(user=user_id, ordered=False)
+        print(order_qs)
+        if order_qs.exists():
+            order = order_qs[0]
+            print(order)
+            if order.items.filter(item__slug=item.slug).exists():
+                order_item.quantity += 1
+                order_item.save()
+                return Response("add to cart")
+            else:
+                order.items.add(order_item)
+                return Response("add to cart")
+        else:
+            ordered_date = timezone.now()
+            order = Order.objects.create(
+                user=request.user, ordered_date=ordered_date)
+            order_item.quantity += 1
+            order_item.save()
+            return Response("add to cart")

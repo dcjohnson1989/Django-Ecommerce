@@ -19,7 +19,8 @@ from .views import (
     CategoryView,
     ItemList,
     ItemDetail,
-    OrderItemList
+    OrderItemList,
+    OrderCart
 )
 
 app_name = 'core'
@@ -53,6 +54,7 @@ urlpatterns = [
     path('request-refund/', RequestRefundView.as_view(), name='request-refund'),
     path('api/items', ItemList.as_view(), name='item_api'),
     path('api/item/<slug>', ItemDetail.as_view(), name='item_detail_api'),
-    path('api/order_items', OrderItemList.as_view(), name='order_item_list'),
+    path('api/cart_items', OrderItemList.as_view(), name='cart_item_list'),
+    path('api/order_cart', OrderCart.as_view(), name='order_cart_api'),
     url('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger')
 ]
